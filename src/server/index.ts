@@ -9,6 +9,7 @@ import {
   deleteMember,
   getAdminState,
   getAssignmentViews,
+  getLineDestinations,
   saveFamilyName,
   updateNotificationSetting,
   upsertChild,
@@ -31,6 +32,15 @@ app.use((req, res, next) => {
 
 app.get("/api/state", (_req, res) => {
   res.json(getAdminState(config.defaultFamilyId));
+});
+
+app.get("/api/line/destinations", (_req, res) => {
+  res.json(
+    getLineDestinations(config.defaultFamilyId).map((destination) => ({
+      type: destination.destinationType,
+      idLength: destination.destinationId.length
+    }))
+  );
 });
 
 app.put("/api/family", (req, res) => {

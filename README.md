@@ -60,7 +60,7 @@ https://your-domain.example.com/line/webhook
 
 SQLiteの `notification_settings` に保存された時刻をもとに、Asia/Tokyoタイムゾーンでcronを起動します。
 
-- 前日確認: デフォルト20:00
+- 前日確認: デフォルト12:00
 - 当日通知: デフォルト06:00
 
 LINE連携値が未設定の場合、送信内容はサーバーログへ出力されます。
@@ -114,7 +114,7 @@ LINE DevelopersのWebhook URLは次にします。
 https://hoikuen-line-reminder.onrender.com/line/webhook
 ```
 
-注意: 無料プランなどでWebサービスがスリープすると、20:00と06:00のアプリ内cronが動かない場合があります。毎日の通知に使う場合は常時起動のプランにするか、外部cronから以下を叩いてください。
+注意: 無料プランなどでWebサービスがスリープすると、12:00と06:00のアプリ内cronが動かない場合があります。毎日の通知に使う場合は常時起動のプランにするか、外部cronから以下を叩いてください。
 
 ```text
 POST /api/cron/previous-day

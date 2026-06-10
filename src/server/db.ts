@@ -67,7 +67,7 @@ export function migrate() {
     CREATE TABLE IF NOT EXISTS notification_settings (
       id TEXT PRIMARY KEY,
       family_id TEXT NOT NULL UNIQUE,
-      previous_day_notify_time TEXT NOT NULL DEFAULT '20:00',
+      previous_day_notify_time TEXT NOT NULL DEFAULT '12:00',
       morning_notify_time TEXT NOT NULL DEFAULT '06:00',
       FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
     );

@@ -42,7 +42,7 @@ export function seed() {
 
   db.prepare(`
     INSERT OR IGNORE INTO notification_settings (id, family_id, previous_day_notify_time, morning_notify_time)
-    VALUES (?, ?, '20:00', '06:00')
+    VALUES (?, ?, '12:00', '06:00')
   `).run("notify_demo", familyId);
 }
 

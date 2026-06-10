@@ -26,7 +26,7 @@ const app = express();
 
 app.use(cors());
 app.use((req, res, next) => {
-  if (req.path === "/line/webhook" && lineMiddleware) return lineMiddleware(req, res, next);
+  if (req.method === "POST" && req.path === "/line/webhook" && lineMiddleware) return lineMiddleware(req, res, next);
   return express.json()(req, res, next);
 });
 
@@ -127,6 +127,10 @@ app.post("/line/webhook", async (req, res) => {
     console.error("[LINE webhook failed]", error instanceof Error ? error.message : String(error));
     res.sendStatus(200);
   }
+});
+
+app.get("/line/webhook", (_req, res) => {
+  res.status(200).send("LINE webhook endpoint is ready. Configure this URL in LINE Developers; LINE will call it with POST.");
 });
 
 startScheduler();

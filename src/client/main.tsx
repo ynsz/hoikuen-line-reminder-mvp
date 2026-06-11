@@ -18,6 +18,11 @@ const roleLabels: Record<Role, string> = {
   grandmother: "祖母",
   other: "その他"
 };
+const genderLabels = {
+  male: "男の子",
+  female: "女の子",
+  other: "その他"
+} as const;
 const childColors = ["#DDEBFF", "#FFE3E3", "#EFE5FF", "#FFF0D6", "#DFF4EA"];
 const childTextColors = ["#2F5F9F", "#9A4A4A", "#6E5597", "#88622F", "#3F7258"];
 
@@ -225,14 +230,21 @@ function MembersPanel({ state, setState }: { state: AdminState; setState: (state
 }
 
 function ChildrenPanel({ state, setState }: { state: AdminState; setState: (state: AdminState) => void }) {
-  const blank = { name: "" };
+  const blank = { name: "", birthDate: "", gender: "other", emoji: "👶" };
   const [form, setForm] = useState(blank);
-  const [editing, setEditing] = useState<Record<string, { name: string }>>({});
+  const [editing, setEditing] = useState<Record<string, { name: string; birthDate: string; gender: string; emoji: string }>>({});
   const save = async () => {
     if (!form.name.trim()) return;
     setState(await api<AdminState>("/api/children", {
       method: "POST",
-      body: JSON.stringify({ name: form.name, nurseryName: "", displayOrder: state.children.length + 1 })
+      body: JSON.stringify({
+        name: form.name,
+        nurseryName: "",
+        displayOrder: state.children.length + 1,
+        birthDate: form.birthDate || null,
+        gender: form.gender,
+        emoji: form.emoji || "👶"
+      })
     }));
     setForm(blank);
   };
@@ -241,14 +253,25 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
     if (!values?.name.trim()) return;
     setState(await api<AdminState>("/api/children", {
       method: "POST",
-      body: JSON.stringify({ id: child.id, name: values.name, nurseryName: child.nurseryName ?? "", displayOrder: child.displayOrder })
+      body: JSON.stringify({
+        id: child.id,
+        name: values.name,
+        nurseryName: child.nurseryName ?? "",
+        displayOrder: child.displayOrder,
+        birthDate: values.birthDate || null,
+        gender: values.gender,
+        emoji: values.emoji || "👶"
+      })
     }));
   };
   const remove = async (id: string) => setState(await api<AdminState>(`/api/children/${id}`, { method: "DELETE" }));
   const draftFor = (child: Child) => editing[child.id] ?? {
-    name: child.name
+    name: child.name,
+    birthDate: child.birthDate ?? "",
+    gender: child.gender ?? "other",
+    emoji: child.emoji ?? "👶"
   };
-  const setDraft = (child: Child, values: Partial<{ name: string }>) => {
+  const setDraft = (child: Child, values: Partial<{ name: string; birthDate: string; gender: string; emoji: string }>) => {
     setEditing({ ...editing, [child.id]: { ...draftFor(child), ...values } });
   };
   return (
@@ -257,13 +280,22 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
       <div className="stack">
         {state.children.map((child, index) => {
           const draft = draftFor(child);
-          const changed = draft.name !== child.name;
+          const changed =
+            draft.name !== child.name ||
+            draft.birthDate !== (child.birthDate ?? "") ||
+            draft.gender !== (child.gender ?? "other") ||
+            draft.emoji !== (child.emoji ?? "👶");
           const color = childColor(index);
           const textColor = childTextColors[index % childTextColors.length];
           return (
             <div className="edit-row color-row" key={child.id} style={{ "--accent": color, "--accent-text": textColor } as React.CSSProperties}>
               <span className="color-label"><i />子ども</span>
               <input aria-label={`${child.name}の名前`} value={draft.name} onChange={(event) => setDraft(child, { name: event.target.value })} />
+              <input aria-label={`${child.name}の絵文字`} value={draft.emoji} maxLength={4} onChange={(event) => setDraft(child, { emoji: event.target.value })} />
+              <input aria-label={`${child.name}の生年月日`} type="date" value={draft.birthDate} onChange={(event) => setDraft(child, { birthDate: event.target.value })} />
+              <select aria-label={`${child.name}の性別`} value={draft.gender} onChange={(event) => setDraft(child, { gender: event.target.value })}>
+                {Object.entries(genderLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
               <div className="edit-actions">
                 <button className="icon-btn" title="保存" disabled={!changed} onClick={() => update(child)}><Save size={17} /></button>
                 <button className="icon-btn" title="削除" onClick={() => remove(child.id)}><Trash2 size={17} /></button>
@@ -273,6 +305,11 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
         })}
       </div>
       <input placeholder="名前" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+      <input placeholder="絵文字" value={form.emoji} maxLength={4} onChange={(event) => setForm({ ...form, emoji: event.target.value })} />
+      <input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} />
+      <select value={form.gender} onChange={(event) => setForm({ ...form, gender: event.target.value })}>
+        {Object.entries(genderLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select>
       <button className="btn secondary w-full" onClick={save}><Plus size={18} /> 追加</button>
     </section>
   );

@@ -6,6 +6,7 @@ import {
   getLineDestinations,
   getLineUsers,
   getMembers,
+  getMonthlyTransportCounts,
   setDailyAssignment,
   upsertLineDestination,
   upsertLineUser
@@ -30,39 +31,95 @@ const jaWeekdays = ["日", "月", "火", "水", "木", "金", "土"];
 const childButtonColors = ["#DDEBFF", "#FFE3E3", "#EFE5FF", "#FFF0D6", "#DFF4EA"];
 const childTextColors = ["#2F5F9F", "#9A4A4A", "#6E5597", "#88622F", "#3F7258"];
 
+function dateFromIsoDay(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 export function isoDate(offsetDays = 0) {
   const now = new Date();
-  const jst = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
-  jst.setDate(jst.getDate() + offsetDays);
-  return `${jst.getFullYear()}-${String(jst.getMonth() + 1).padStart(2, "0")}-${String(jst.getDate()).padStart(2, "0")}`;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const jstDate = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day) + offsetDays));
+  return `${jstDate.getUTCFullYear()}-${String(jstDate.getUTCMonth() + 1).padStart(2, "0")}-${String(jstDate.getUTCDate()).padStart(2, "0")}`;
 }
 
 export function formatDateLabel(date: string) {
-  const d = new Date(`${date}T00:00:00+09:00`);
-  return `${d.getMonth() + 1}/${d.getDate()}(${jaWeekdays[d.getDay()]})`;
+  const d = dateFromIsoDay(date);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}(${jaWeekdays[d.getUTCDay()]})`;
 }
 
 export function isWeekend(date: string) {
-  const day = new Date(`${date}T00:00:00+09:00`).getDay();
+  const day = dateFromIsoDay(date).getUTCDay();
   return day === 0 || day === 6;
+}
+
+function isLastWeekdayOfMonth(date: string) {
+  const current = dateFromIsoDay(date);
+  const probe = new Date(current);
+  probe.setUTCDate(probe.getUTCDate() + 1);
+  while (probe.getUTCMonth() === current.getUTCMonth()) {
+    const day = probe.getUTCDay();
+    if (day !== 0 && day !== 6) return false;
+    probe.setUTCDate(probe.getUTCDate() + 1);
+  }
+  return true;
+}
+
+function daysSinceBirth(child: Child, date: string) {
+  if (!child.birthDate) return null;
+  const birth = dateFromIsoDay(child.birthDate).getTime();
+  const target = dateFromIsoDay(date).getTime();
+  if (!Number.isFinite(birth) || target < birth) return null;
+  return Math.floor((target - birth) / 86_400_000);
 }
 
 function memberName(member: Member | null) {
   return member?.name ?? "";
 }
 
-function assignmentLines(views: AssignmentView[]) {
+function monthlyCountLine(counts: Map<string, number> | undefined, members: Member[]) {
+  if (!counts) return "";
+  const parts = members
+    .filter((member) => member.role === "father" || member.role === "mother")
+    .map((member) => `${member.name}${counts.get(member.id) ?? 0}回`);
+  return parts.length ? `今月の送迎\n${parts.join(" / ")}` : "";
+}
+
+function monthlyFamilySummary(counts: Map<string, Map<string, number>>, members: Member[], date: string) {
+  if (!isLastWeekdayOfMonth(date)) return "";
+  const parentIds = new Set(members.filter((member) => member.role === "father" || member.role === "mother").map((member) => member.id));
+  let total = 0;
+  for (const childCounts of counts.values()) {
+    for (const [memberId, count] of childCounts.entries()) {
+      if (parentIds.has(memberId)) total += count;
+    }
+  }
+  return total > 0 ? `\n\n今月は夫婦で${total}回の送迎をこなしました👏` : "";
+}
+
+function assignmentLines(familyId: string, date: string, views: AssignmentView[]) {
+  const members = getMembers(familyId);
+  const counts = getMonthlyTransportCounts(familyId, date);
   return views
     .map((view) => {
+      const age = daysSinceBirth(view.child, date);
+      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}ちゃん${age === null ? "" : ` 生後${age}日`}`;
+      const countLine = monthlyCountLine(counts.get(view.child.id), members);
       if (view.status === "absent") {
-        return `【${view.child.name}】\nこの日は休み`;
+        return `${childTitle}\nこの日は休み${countLine ? `\n\n${countLine}` : ""}`;
       }
       if (view.status === "no_transport") {
-        return `【${view.child.name}】\nこの日は送迎なし`;
+        return `${childTitle}\nこの日は送迎なし${countLine ? `\n\n${countLine}` : ""}`;
       }
-      return `【${view.child.name}】\n送り：${memberName(view.dropoffMember)}\n迎え：${memberName(view.pickupMember)}`;
+      return `${childTitle}\n送り：${memberName(view.dropoffMember)}\n迎え：${memberName(view.pickupMember)}${countLine ? `\n\n${countLine}` : ""}`;
     })
-    .join("\n\n");
+    .join("\n\n") + monthlyFamilySummary(counts, members, date);
 }
 
 type ButtonSpec = {
@@ -151,14 +208,14 @@ export function buildPreviousDayMessage(familyId: string, date: string): Message
   const views = getAssignmentViews(familyId, date);
   return flexMessage(
     "明日の送迎予定です",
-    `${formatDateLabel(date)}\n\n${assignmentLines(views)}\n\n変更がある場合のみ押してください。`,
+    `${formatDateLabel(date)}\n\n${assignmentLines(familyId, date, views)}\n\n変更がある場合のみ押してください。`,
     [{ label: "変更する", data: `action=start&date=${date}`, color: "#E7F4EC", textColor: "#2F7D57", style: "secondary" }]
   );
 }
 
 export function buildMorningMessage(familyId: string, date: string): Message {
   const views = getAssignmentViews(familyId, date);
-  return textMessage(`今日の送迎担当です。\n\n${formatDateLabel(date)}\n\n${assignmentLines(views)}`);
+  return textMessage(`今日の送迎担当です。\n\n${formatDateLabel(date)}\n\n${assignmentLines(familyId, date, views)}`);
 }
 
 function selectChildrenMessage(familyId: string, date: string): Message {
@@ -240,7 +297,7 @@ function updatedMessage(familyId: string, date: string): Message {
   const children = getChildren(familyId);
   return flexMessage(
     `${formatDateLabel(date)}の送迎予定を更新しました`,
-    `${assignmentLines(getAssignmentViews(familyId, date))}\n\n他にも変更しますか？`,
+    `${assignmentLines(familyId, date, getAssignmentViews(familyId, date))}\n\n他にも変更しますか？`,
     [
       ...children.map((child, index) => ({
         label: `${child.name}を変更`,
@@ -254,7 +311,7 @@ function updatedMessage(familyId: string, date: string): Message {
 }
 
 function confirmedMessage(familyId: string, date: string): Message {
-  return textMessage(`${formatDateLabel(date)}の送迎予定を確定しました。\n\n${assignmentLines(getAssignmentViews(familyId, date))}`);
+  return textMessage(`${formatDateLabel(date)}の送迎予定を確定しました。\n\n${assignmentLines(familyId, date, getAssignmentViews(familyId, date))}`);
 }
 
 function parseData(data: string) {

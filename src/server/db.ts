@@ -89,6 +89,17 @@ export function migrate() {
       FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
     );
   `);
+
+  const childColumns = new Set((db.prepare("PRAGMA table_info(children)").all() as Array<{ name: string }>).map((column) => column.name));
+  if (!childColumns.has("birth_date")) {
+    db.prepare("ALTER TABLE children ADD COLUMN birth_date TEXT").run();
+  }
+  if (!childColumns.has("gender")) {
+    db.prepare("ALTER TABLE children ADD COLUMN gender TEXT").run();
+  }
+  if (!childColumns.has("emoji")) {
+    db.prepare("ALTER TABLE children ADD COLUMN emoji TEXT").run();
+  }
 }
 
 export function id(prefix: string) {

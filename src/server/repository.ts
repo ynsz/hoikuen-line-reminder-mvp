@@ -15,13 +15,25 @@ import type {
 
 type Row = Record<string, unknown>;
 
+function dayOfWeek(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
 const childRow = (row: Row): Child => ({
   id: String(row.id),
   familyId: String(row.family_id),
   name: String(row.name),
   displayOrder: Number(row.display_order),
-  nurseryName: row.nursery_name ? String(row.nursery_name) : null
+  nurseryName: row.nursery_name ? String(row.nursery_name) : null,
+  birthDate: row.birth_date ? String(row.birth_date) : null,
+  gender: row.gender ? childGender(String(row.gender)) : null,
+  emoji: row.emoji ? String(row.emoji) : null
 });
+
+function childGender(value: string): Child["gender"] {
+  return value === "male" || value === "female" || value === "other" ? value : null;
+}
 
 const memberRow = (row: Row): Member => ({
   id: String(row.id),
@@ -104,11 +116,26 @@ export function deleteMember(memberId: string) {
 export function upsertChild(child: Partial<Child> & Pick<Child, "familyId" | "name" | "displayOrder">): Child {
   const childId = child.id ?? id("child");
   db.prepare(`
-    INSERT INTO children (id, family_id, name, display_order, nursery_name)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET name = excluded.name, display_order = excluded.display_order, nursery_name = excluded.nursery_name
-  `).run(childId, child.familyId, child.name, child.displayOrder, child.nurseryName ?? null);
-  return db.prepare("SELECT * FROM children WHERE id = ?").get(childId) as Child;
+    INSERT INTO children (id, family_id, name, display_order, nursery_name, birth_date, gender, emoji)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      display_order = excluded.display_order,
+      nursery_name = excluded.nursery_name,
+      birth_date = excluded.birth_date,
+      gender = excluded.gender,
+      emoji = excluded.emoji
+  `).run(
+    childId,
+    child.familyId,
+    child.name,
+    child.displayOrder,
+    child.nurseryName ?? null,
+    child.birthDate ?? null,
+    child.gender ?? null,
+    child.emoji ?? null
+  );
+  return childRow(db.prepare("SELECT * FROM children WHERE id = ?").get(childId) as Row);
 }
 
 export function deleteChild(childId: string) {
@@ -167,8 +194,7 @@ export function upsertLineDestination(
 }
 
 export function getAssignmentViews(familyId: string, date: string): AssignmentView[] {
-  const target = new Date(`${date}T00:00:00`);
-  const dayOfWeek = target.getDay();
+  const targetDayOfWeek = dayOfWeek(date);
   const members = new Map(getMembers(familyId).map((member) => [member.id, member]));
   const children = getChildren(familyId);
   const daily = new Map(
@@ -177,7 +203,7 @@ export function getAssignmentViews(familyId: string, date: string): AssignmentVi
       return [assignment.childId, assignment] as const;
     })
   );
-  const rules = new Map(getWeeklyRules(familyId).filter((rule) => rule.dayOfWeek === dayOfWeek).map((rule) => [rule.childId, rule]));
+  const rules = new Map(getWeeklyRules(familyId).filter((rule) => rule.dayOfWeek === targetDayOfWeek).map((rule) => [rule.childId, rule]));
 
   return children.map((child) => {
     const assignment = daily.get(child.id);
@@ -206,4 +232,37 @@ export function setDailyAssignment(input: {
     ON CONFLICT(family_id, child_id, date)
     DO UPDATE SET dropoff_member_id = excluded.dropoff_member_id, pickup_member_id = excluded.pickup_member_id, status = excluded.status
   `).run(id("day"), input.familyId, input.childId, input.date, input.dropoffMemberId, input.pickupMemberId, input.status);
+}
+
+export function getMonthlyTransportCounts(familyId: string, date: string) {
+  const members = getMembers(familyId);
+  const children = getChildren(familyId);
+  const [year, month] = date.split("-").map(Number);
+  const targetDay = Number(date.split("-")[2]);
+  const result = new Map<string, Map<string, number>>();
+
+  for (const child of children) {
+    result.set(child.id, new Map(members.map((member) => [member.id, 0])));
+  }
+
+  for (let day = 1; day <= targetDay; day += 1) {
+    const current = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const currentDayOfWeek = dayOfWeek(current);
+    if (currentDayOfWeek === 0 || currentDayOfWeek === 6) continue;
+
+    const assignments = getAssignmentViews(familyId, current);
+    for (const assignment of assignments) {
+      if (assignment.status !== "scheduled") continue;
+      const counts = result.get(assignment.child.id);
+      if (!counts) continue;
+      if (assignment.dropoffMember) {
+        counts.set(assignment.dropoffMember.id, (counts.get(assignment.dropoffMember.id) ?? 0) + 1);
+      }
+      if (assignment.pickupMember) {
+        counts.set(assignment.pickupMember.id, (counts.get(assignment.pickupMember.id) ?? 0) + 1);
+      }
+    }
+  }
+
+  return result;
 }

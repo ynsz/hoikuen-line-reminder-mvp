@@ -1,5 +1,6 @@
 export type Role = "father" | "mother" | "grandfather" | "grandmother" | "other";
 export type AssignmentStatus = "scheduled" | "no_transport" | "absent";
+export type ChildGender = "male" | "female" | "other";
 
 export type Family = {
   id: string;
@@ -19,6 +20,9 @@ export type Child = {
   name: string;
   displayOrder: number;
   nurseryName?: string | null;
+  birthDate?: string | null;
+  gender?: ChildGender | null;
+  emoji?: string | null;
 };
 
 export type WeeklyRule = {

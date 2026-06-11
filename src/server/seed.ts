@@ -16,16 +16,19 @@ export function seed() {
   }
 
   const children = [
-    ["child_older", "兄", 1, "幼児園"],
-    ["child_younger", "妹", 2, "保育園"]
+    ["child_older", "兄", 1, "幼児園", null, "male", "👦"],
+    ["child_younger", "妹", 2, "保育園", null, "female", "👶"]
   ];
-  for (const [childId, name, displayOrder, nurseryName] of children) {
-    db.prepare("INSERT OR IGNORE INTO children (id, family_id, name, display_order, nursery_name) VALUES (?, ?, ?, ?, ?)").run(
+  for (const [childId, name, displayOrder, nurseryName, birthDate, gender, emoji] of children) {
+    db.prepare("INSERT OR IGNORE INTO children (id, family_id, name, display_order, nursery_name, birth_date, gender, emoji) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
       childId,
       familyId,
       name,
       displayOrder,
-      nurseryName
+      nurseryName,
+      birthDate,
+      gender,
+      emoji
     );
   }
 

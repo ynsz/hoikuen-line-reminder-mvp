@@ -235,7 +235,7 @@ export async function pushToFamily(familyId: string, message: Message) {
   }
   const destinations = getLineDestinations(familyId);
   const legacyUsers = getLineUsers(familyId).map((user) => user.lineUserId);
-  const destinationIds = [...new Set([...destinations.map((item) => item.destinationId), ...legacyUsers])];
+  const destinationIds = [...new Set([...config.lineDestinationIds, ...destinations.map((item) => item.destinationId), ...legacyUsers])];
   let successCount = 0;
   let failureCount = 0;
   await Promise.all(

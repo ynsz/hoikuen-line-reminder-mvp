@@ -8,5 +8,9 @@ export const config = {
   defaultFamilyId: process.env.DEFAULT_FAMILY_ID ?? "fam-demo",
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "",
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET ?? "",
+  lineDestinationIds: (process.env.LINE_DESTINATION_IDS ?? process.env.LINE_DESTINATION_ID ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
   cronSecret: process.env.CRON_SECRET ?? ""
 };

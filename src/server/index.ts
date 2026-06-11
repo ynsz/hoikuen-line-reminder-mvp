@@ -36,9 +36,27 @@ app.get("/api/state", (_req, res) => {
 
 app.get("/api/line/destinations", (_req, res) => {
   res.json(
+    [
+      ...config.lineDestinationIds.map((destinationId) => ({
+        type: "env",
+        idLength: destinationId.length
+      })),
+      ...getLineDestinations(config.defaultFamilyId).map((destination) => ({
+        type: destination.destinationType,
+        idLength: destination.destinationId.length
+      }))
+    ]
+  );
+});
+
+app.get("/api/line/destinations/reveal", (req, res) => {
+  if (!config.cronSecret || req.query.secret !== config.cronSecret) {
+    return res.sendStatus(401);
+  }
+  res.json(
     getLineDestinations(config.defaultFamilyId).map((destination) => ({
       type: destination.destinationType,
-      idLength: destination.destinationId.length
+      id: destination.destinationId
     }))
   );
 });

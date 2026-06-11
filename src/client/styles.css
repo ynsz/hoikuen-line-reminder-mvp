@@ -180,6 +180,7 @@ th {
 
 .color-row {
   border-left: 6px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 34%, white);
 }
 
 .color-label {
@@ -193,6 +194,12 @@ th {
   width: 12px;
   height: 12px;
   border-radius: 999px;
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+.color-label {
+  color: var(--accent-text);
 }
 
 .edit-actions {
@@ -223,11 +230,10 @@ th {
 
 .table-name-pill {
   display: inline-flex;
-  min-width: 84px;
+  min-width: 76px;
   justify-content: center;
   border-radius: 999px;
-  padding: 7px 14px;
-  color: white;
+  padding: 6px 12px;
   font-weight: 750;
 }
 

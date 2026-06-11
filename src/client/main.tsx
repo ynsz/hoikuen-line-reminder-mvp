@@ -18,16 +18,23 @@ const roleLabels: Record<Role, string> = {
   grandmother: "祖母",
   other: "その他"
 };
-const childColors = ["#2F80ED", "#EB5757", "#9B51E0", "#F2994A", "#219653"];
+const childColors = ["#DDEBFF", "#FFE3E3", "#EFE5FF", "#FFF0D6", "#DFF4EA"];
+const childTextColors = ["#2F5F9F", "#9A4A4A", "#6E5597", "#88622F", "#3F7258"];
 
 function childColor(index: number) {
   return childColors[index % childColors.length];
 }
 
 function memberColor(member: Member) {
-  if (member.role === "father") return "#2F80ED";
-  if (member.role === "mother") return "#EB5757";
-  return "#08A045";
+  if (member.role === "father") return "#DDEBFF";
+  if (member.role === "mother") return "#FFE3E3";
+  return "#E7F4EC";
+}
+
+function memberTextColor(member: Member) {
+  if (member.role === "father") return "#2F5F9F";
+  if (member.role === "mother") return "#9A4A4A";
+  return "#2F7D57";
 }
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
@@ -199,10 +206,11 @@ function MembersPanel({ state, setState }: { state: AdminState; setState: (state
           const draft = draftFor(member);
           const changed = draft !== member.name;
           const color = memberColor(member);
+          const textColor = memberTextColor(member);
           return (
-            <div className="edit-row color-row" key={member.id} style={{ "--accent": color } as React.CSSProperties}>
+            <div className="edit-row color-row" key={member.id} style={{ "--accent": color, "--accent-text": textColor } as React.CSSProperties}>
               <label className="field">
-                <span className="color-label"><i style={{ background: color }} />{roleLabels[member.role]}</span>
+                <span className="color-label"><i />{roleLabels[member.role]}</span>
                 <input value={draft} onChange={(event) => setDrafts({ ...drafts, [member.id]: event.target.value })} />
               </label>
               <div className="edit-actions">
@@ -251,9 +259,10 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
           const draft = draftFor(child);
           const changed = draft.name !== child.name;
           const color = childColor(index);
+          const textColor = childTextColors[index % childTextColors.length];
           return (
-            <div className="edit-row color-row" key={child.id} style={{ "--accent": color } as React.CSSProperties}>
-              <span className="color-label"><i style={{ background: color }} />子ども</span>
+            <div className="edit-row color-row" key={child.id} style={{ "--accent": color, "--accent-text": textColor } as React.CSSProperties}>
+              <span className="color-label"><i />子ども</span>
               <input aria-label={`${child.name}の名前`} value={draft.name} onChange={(event) => setDraft(child, { name: event.target.value })} />
               <div className="edit-actions">
                 <button className="icon-btn" title="保存" disabled={!changed} onClick={() => update(child)}><Save size={17} /></button>
@@ -300,7 +309,7 @@ function WeeklyRulesTable({ state, setState }: { state: AdminState; setState: (s
             <th>曜日</th>
             {state.children.map((child, index) => (
               <th key={child.id}>
-                <span className="table-name-pill" style={{ background: childColor(index) }}>{child.name}</span>
+                <span className="table-name-pill" style={{ background: childColor(index), color: childTextColors[index % childTextColors.length] }}>{child.name}</span>
               </th>
             ))}
           </tr>

@@ -27,7 +27,8 @@ export const lineMiddleware = config.lineChannelAccessToken && config.lineChanne
   : undefined;
 
 const jaWeekdays = ["日", "月", "火", "水", "木", "金", "土"];
-const childButtonColors = ["#2F80ED", "#EB5757", "#9B51E0", "#F2994A", "#219653"];
+const childButtonColors = ["#DDEBFF", "#FFE3E3", "#EFE5FF", "#FFF0D6", "#DFF4EA"];
+const childTextColors = ["#2F5F9F", "#9A4A4A", "#6E5597", "#88622F", "#3F7258"];
 
 export function isoDate(offsetDays = 0) {
   const now = new Date();
@@ -68,6 +69,7 @@ type ButtonSpec = {
   label: string;
   data: string;
   color?: string;
+  textColor?: string;
   style?: "primary" | "secondary";
 };
 
@@ -80,13 +82,25 @@ function postbackAction(label: string, data: string) {
   };
 }
 
-function flexButton({ label, data, color = "#08A045", style = "primary" }: ButtonSpec) {
+function flexButton({ label, data, color = "#E7F4EC", textColor = "#2F7D57", style = "primary" }: ButtonSpec) {
   return {
-    type: "button",
-    style,
-    height: "md",
-    color,
-    action: postbackAction(label, data)
+    type: "box",
+    layout: "vertical",
+    backgroundColor: color,
+    cornerRadius: "xxl",
+    paddingAll: "10px",
+    action: postbackAction(label, data),
+    contents: [
+      {
+        type: "text",
+        text: label,
+        align: "center",
+        weight: "bold",
+        size: "md",
+        color: textColor,
+        adjustMode: "shrink-to-fit"
+      }
+    ]
   };
 }
 
@@ -114,7 +128,7 @@ function flexMessage(title: string, body: string, buttons: ButtonSpec[]): Messag
             type: "text",
             text: body,
             size: "sm",
-            color: "#202124",
+            color: "#3F4441",
             wrap: true
           }
         ]
@@ -138,7 +152,7 @@ export function buildPreviousDayMessage(familyId: string, date: string): Message
   return flexMessage(
     "明日の送迎予定です",
     `${formatDateLabel(date)}\n\n${assignmentLines(views)}\n\n変更がある場合のみ押してください。`,
-    [{ label: "変更する", data: `action=start&date=${date}`, color: "#08A045", style: "secondary" }]
+    [{ label: "変更する", data: `action=start&date=${date}`, color: "#E7F4EC", textColor: "#2F7D57", style: "secondary" }]
   );
 }
 
@@ -155,18 +169,19 @@ function selectChildrenMessage(familyId: string, date: string): Message {
     children.map((child, index) => ({
       label: child.name,
       data: `action=target&date=${date}&childIds=${child.id}`,
-      color: childButtonColors[index % childButtonColors.length]
+      color: childButtonColors[index % childButtonColors.length],
+      textColor: childTextColors[index % childTextColors.length]
     }))
   );
 }
 
 function selectChangeTypeMessage(date: string, childIds: string): Message {
   return flexMessage("何を変更しますか？", "変更内容を選んでください。", [
-    { label: "送り", data: `action=changeType&date=${date}&childIds=${childIds}&type=dropoff`, color: "#08A045" },
-    { label: "迎え", data: `action=changeType&date=${date}&childIds=${childIds}&type=pickup`, color: "#00A6A6" },
-    { label: "両方", data: `action=changeType&date=${date}&childIds=${childIds}&type=both`, color: "#2F80ED" },
-    { label: "送迎なし", data: `action=applyStatus&date=${date}&childIds=${childIds}&status=no_transport`, color: "#828282" },
-    { label: "休み", data: `action=applyStatus&date=${date}&childIds=${childIds}&status=absent`, color: "#F2994A" }
+    { label: "送り", data: `action=changeType&date=${date}&childIds=${childIds}&type=dropoff`, color: "#E7F4EC", textColor: "#2F7D57" },
+    { label: "迎え", data: `action=changeType&date=${date}&childIds=${childIds}&type=pickup`, color: "#E4F3F2", textColor: "#407B78" },
+    { label: "両方", data: `action=changeType&date=${date}&childIds=${childIds}&type=both`, color: "#E8EEF8", textColor: "#486585" },
+    { label: "送迎なし", data: `action=applyStatus&date=${date}&childIds=${childIds}&status=no_transport`, color: "#EEEEEE", textColor: "#626262" },
+    { label: "休み", data: `action=applyStatus&date=${date}&childIds=${childIds}&status=absent`, color: "#FFF0D6", textColor: "#88622F" }
   ]);
 }
 
@@ -177,7 +192,8 @@ function selectMemberMessage(familyId: string, date: string, childIds: string, t
     getMembers(familyId).map((member) => ({
       label: member.name,
       data: `action=member&date=${date}&childIds=${childIds}&type=${type}&memberId=${member.id}`,
-      color: member.role === "father" ? "#2F80ED" : member.role === "mother" ? "#EB5757" : "#08A045"
+      color: member.role === "father" ? "#DDEBFF" : member.role === "mother" ? "#FFE3E3" : "#E7F4EC",
+      textColor: member.role === "father" ? "#2F5F9F" : member.role === "mother" ? "#9A4A4A" : "#2F7D57"
     }))
   );
 }
@@ -229,9 +245,10 @@ function updatedMessage(familyId: string, date: string): Message {
       ...children.map((child, index) => ({
         label: `${child.name}を変更`,
         data: `action=target&date=${date}&childIds=${child.id}`,
-        color: childButtonColors[index % childButtonColors.length]
+        color: childButtonColors[index % childButtonColors.length],
+        textColor: childTextColors[index % childTextColors.length]
       })),
-      { label: "これで確定", data: `action=confirm&date=${date}`, color: "#08A045", style: "secondary" as const }
+      { label: "これで確定", data: `action=confirm&date=${date}`, color: "#E7F4EC", textColor: "#2F7D57", style: "secondary" as const }
     ]
   );
 }

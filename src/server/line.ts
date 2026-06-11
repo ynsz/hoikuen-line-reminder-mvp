@@ -79,6 +79,10 @@ function daysSinceBirth(child: Child, date: string) {
   return Math.floor((target - birth) / 86_400_000);
 }
 
+function childSuffix(child: Child) {
+  return child.gender === "male" ? "くん" : "ちゃん";
+}
+
 function memberName(member: Member | null) {
   return member?.name ?? "";
 }
@@ -109,7 +113,7 @@ function assignmentLines(familyId: string, date: string, views: AssignmentView[]
   return views
     .map((view) => {
       const age = daysSinceBirth(view.child, date);
-      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}ちゃん${age === null ? "" : ` 生後${age}日`}`;
+      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}${childSuffix(view.child)}${age === null ? "" : ` 生後${age}日`}`;
       const countLine = monthlyCountLine(counts.get(view.child.id), members);
       if (view.status === "absent") {
         return `${childTitle}\nこの日は休み${countLine ? `\n\n${countLine}` : ""}`;

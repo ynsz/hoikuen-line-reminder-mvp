@@ -94,8 +94,8 @@ app.post("/api/line/test/:kind", async (req, res) => {
   const message = req.params.kind === "morning"
     ? buildMorningMessage(config.defaultFamilyId, date)
     : buildPreviousDayMessage(config.defaultFamilyId, date);
-  await pushToFamily(config.defaultFamilyId, message);
-  res.json({ ok: true, message });
+  const delivery = await pushToFamily(config.defaultFamilyId, message);
+  res.json({ ok: delivery.successCount > 0, date, delivery, message });
 });
 
 function requireCronSecret(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -107,15 +107,15 @@ function requireCronSecret(req: express.Request, res: express.Response, next: ex
 app.post("/api/cron/previous-day", requireCronSecret, async (_req, res) => {
   const date = isoDate(1);
   const message = buildPreviousDayMessage(config.defaultFamilyId, date);
-  await pushToFamily(config.defaultFamilyId, message);
-  res.json({ ok: true, date });
+  const delivery = await pushToFamily(config.defaultFamilyId, message);
+  res.json({ ok: delivery.successCount > 0, date, delivery });
 });
 
 app.post("/api/cron/morning", requireCronSecret, async (_req, res) => {
   const date = isoDate(0);
   const message = buildMorningMessage(config.defaultFamilyId, date);
-  await pushToFamily(config.defaultFamilyId, message);
-  res.json({ ok: true, date });
+  const delivery = await pushToFamily(config.defaultFamilyId, message);
+  res.json({ ok: delivery.successCount > 0, date, delivery });
 });
 
 app.post("/line/webhook", async (req, res) => {

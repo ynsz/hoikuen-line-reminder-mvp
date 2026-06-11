@@ -231,20 +231,25 @@ export async function handleLineEvent(event: WebhookEvent, familyId: string) {
 export async function pushToFamily(familyId: string, message: Message) {
   if (!client) {
     console.log("[LINE disabled]", JSON.stringify(message, null, 2));
-    return;
+    return { destinationCount: 0, successCount: 0, failureCount: 0, disabled: true };
   }
   const destinations = getLineDestinations(familyId);
   const legacyUsers = getLineUsers(familyId).map((user) => user.lineUserId);
   const destinationIds = [...new Set([...destinations.map((item) => item.destinationId), ...legacyUsers])];
+  let successCount = 0;
+  let failureCount = 0;
   await Promise.all(
     destinationIds.map(async (destinationId) => {
       try {
         await client.pushMessage(destinationId, message);
+        successCount += 1;
       } catch (error) {
+        failureCount += 1;
         console.error("[LINE push failed]", error instanceof Error ? error.message : String(error));
       }
     })
   );
+  return { destinationCount: destinationIds.length, successCount, failureCount, disabled: false };
 }
 
 export function previewLinePayload(familyId: string, date: string, kind: "previous" | "morning") {

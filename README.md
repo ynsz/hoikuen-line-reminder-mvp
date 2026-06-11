@@ -123,6 +123,24 @@ POST /api/cron/morning
 
 `CRON_SECRET` を設定した場合は、`x-cron-secret` ヘッダーか `?secret=...` で同じ値を渡します。
 
+### 管理画面からcron-job.orgの時刻も同期する
+
+Renderの環境変数に以下を設定すると、管理画面で通知時刻を保存したときにcron-job.orgのジョブ時刻も更新します。
+
+```text
+CRON_JOB_ORG_API_KEY=cron-job.org Settingsで発行したAPIキー
+CRON_JOB_PREVIOUS_ID=前日確認ジョブID
+CRON_JOB_MORNING_ID=朝通知ジョブID
+```
+
+ジョブIDはcron-job.orgのURL末尾です。
+
+```text
+https://console.cron-job.org/jobs/7784884
+```
+
+この場合のジョブIDは `7784884` です。
+
 ## データモデル
 
 主要テーブル:

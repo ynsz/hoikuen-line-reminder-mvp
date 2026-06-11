@@ -18,6 +18,7 @@ import {
 } from "./repository";
 import { buildMorningMessage, buildPreviousDayMessage, handleLineEvent, isoDate, lineMiddleware, previewLinePayload, pushToFamily } from "./line";
 import { startScheduler } from "./scheduler";
+import { syncCronJobOrgSchedule } from "./cronJobOrg";
 
 migrate();
 seed();
@@ -93,8 +94,17 @@ app.put("/api/weekly-rules", (req, res) => {
   res.json(getAdminState(config.defaultFamilyId));
 });
 
-app.put("/api/notification-setting", (req, res) => {
+app.put("/api/notification-setting", async (req, res) => {
   updateNotificationSetting(config.defaultFamilyId, req.body.previousDayNotifyTime, req.body.morningNotifyTime);
+  try {
+    const [previousCron, morningCron] = await Promise.all([
+      syncCronJobOrgSchedule("previous", req.body.previousDayNotifyTime),
+      syncCronJobOrgSchedule("morning", req.body.morningNotifyTime)
+    ]);
+    console.log("[cron-job.org sync]", { previousCron, morningCron });
+  } catch (error) {
+    console.error("[cron-job.org sync failed]", error instanceof Error ? error.message : String(error));
+  }
   res.json(getAdminState(config.defaultFamilyId));
 });
 

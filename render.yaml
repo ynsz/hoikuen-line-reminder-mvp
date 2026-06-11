@@ -20,6 +20,12 @@ services:
         sync: false
       - key: CRON_SECRET
         generateValue: true
+      - key: CRON_JOB_ORG_API_KEY
+        sync: false
+      - key: CRON_JOB_PREVIOUS_ID
+        sync: false
+      - key: CRON_JOB_MORNING_ID
+        sync: false
     disks:
       - name: sqlite-data
         mountPath: /var/data

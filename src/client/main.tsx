@@ -12,7 +12,6 @@ const roleLabels: Record<Role, string> = {
   grandmother: "祖母",
   other: "その他"
 };
-const roleOptions: Role[] = ["father", "mother", "other"];
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -160,63 +159,66 @@ function NotificationPanel({ state, setState }: { state: AdminState; setState: (
 }
 
 function MembersPanel({ state, setState }: { state: AdminState; setState: (state: AdminState) => void }) {
-  const blank = { name: "", role: "other" as Role };
-  const [form, setForm] = useState(blank);
-  const save = async () => {
-    if (!form.name.trim()) return;
-    setState(await api<AdminState>("/api/members", { method: "POST", body: JSON.stringify(form) }));
-    setForm(blank);
+  const editableMembers = state.members.filter((member) => member.role === "father" || member.role === "mother");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draftFor = (member: Member) => drafts[member.id] ?? member.name;
+  const save = async (member: Member) => {
+    const name = draftFor(member).trim();
+    if (!name) return;
+    setState(await api<AdminState>("/api/members", {
+      method: "POST",
+      body: JSON.stringify({ id: member.id, name, role: member.role })
+    }));
   };
-  const remove = async (id: string) => setState(await api<AdminState>(`/api/members/${id}`, { method: "DELETE" }));
   return (
     <section className="panel">
       <h2 className="section-title"><UsersRound size={20} /> 担当者</h2>
       <div className="stack">
-        {state.members.map((member) => (
-          <div className="row" key={member.id}>
-            <div>
-              <strong>{member.name}</strong>
-              <p>{roleLabels[member.role]}</p>
+        {editableMembers.map((member) => {
+          const draft = draftFor(member);
+          const changed = draft !== member.name;
+          return (
+            <div className="edit-row" key={member.id}>
+              <label className="field">
+                <span>{roleLabels[member.role]}</span>
+                <input value={draft} onChange={(event) => setDrafts({ ...drafts, [member.id]: event.target.value })} />
+              </label>
+              <div className="edit-actions">
+                <button className="icon-btn" title="保存" disabled={!changed} onClick={() => save(member)}><Save size={17} /></button>
+              </div>
             </div>
-            <button className="icon-btn" title="削除" onClick={() => remove(member.id)}><Trash2 size={17} /></button>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <div className="grid grid-cols-[1fr_112px] gap-2">
-        <input placeholder="担当者名" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-        <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Role })}>
-          {roleOptions.map((value) => <option key={value} value={value}>{roleLabels[value]}</option>)}
-        </select>
-      </div>
-      <button className="btn secondary w-full" onClick={save}><Plus size={18} /> 追加</button>
     </section>
   );
 }
 
 function ChildrenPanel({ state, setState }: { state: AdminState; setState: (state: AdminState) => void }) {
-  const blank = { name: "", nurseryName: "", displayOrder: state.children.length + 1 };
+  const blank = { name: "" };
   const [form, setForm] = useState(blank);
-  const [editing, setEditing] = useState<Record<string, Pick<Child, "name" | "displayOrder"> & { nurseryName: string }>>({});
+  const [editing, setEditing] = useState<Record<string, { name: string }>>({});
   const save = async () => {
     if (!form.name.trim()) return;
-    setState(await api<AdminState>("/api/children", { method: "POST", body: JSON.stringify(form) }));
-    setForm({ ...blank, displayOrder: state.children.length + 2 });
+    setState(await api<AdminState>("/api/children", {
+      method: "POST",
+      body: JSON.stringify({ name: form.name, nurseryName: "", displayOrder: state.children.length + 1 })
+    }));
+    setForm(blank);
   };
   const update = async (child: Child) => {
     const values = editing[child.id];
     if (!values?.name.trim()) return;
     setState(await api<AdminState>("/api/children", {
       method: "POST",
-      body: JSON.stringify({ id: child.id, ...values })
+      body: JSON.stringify({ id: child.id, name: values.name, nurseryName: child.nurseryName ?? "", displayOrder: child.displayOrder })
     }));
   };
   const remove = async (id: string) => setState(await api<AdminState>(`/api/children/${id}`, { method: "DELETE" }));
   const draftFor = (child: Child) => editing[child.id] ?? {
-    name: child.name,
-    nurseryName: child.nurseryName ?? "",
-    displayOrder: child.displayOrder
+    name: child.name
   };
-  const setDraft = (child: Child, values: Partial<Pick<Child, "name" | "displayOrder"> & { nurseryName: string }>) => {
+  const setDraft = (child: Child, values: Partial<{ name: string }>) => {
     setEditing({ ...editing, [child.id]: { ...draftFor(child), ...values } });
   };
   return (
@@ -225,15 +227,10 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
       <div className="stack">
         {state.children.map((child) => {
           const draft = draftFor(child);
-          const changed =
-            draft.name !== child.name ||
-            draft.nurseryName !== (child.nurseryName ?? "") ||
-            draft.displayOrder !== child.displayOrder;
+          const changed = draft.name !== child.name;
           return (
             <div className="edit-row" key={child.id}>
               <input aria-label={`${child.name}の名前`} value={draft.name} onChange={(event) => setDraft(child, { name: event.target.value })} />
-              <input aria-label={`${child.name}の園名`} placeholder="園名（任意）" value={draft.nurseryName} onChange={(event) => setDraft(child, { nurseryName: event.target.value })} />
-              <input aria-label={`${child.name}の表示順`} type="number" min={1} value={draft.displayOrder} onChange={(event) => setDraft(child, { displayOrder: Number(event.target.value) })} />
               <div className="edit-actions">
                 <button className="icon-btn" title="保存" disabled={!changed} onClick={() => update(child)}><Save size={17} /></button>
                 <button className="icon-btn" title="削除" onClick={() => remove(child.id)}><Trash2 size={17} /></button>
@@ -243,8 +240,6 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
         })}
       </div>
       <input placeholder="名前" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-      <input placeholder="園名（任意）" value={form.nurseryName} onChange={(event) => setForm({ ...form, nurseryName: event.target.value })} />
-      <input type="number" min={1} value={form.displayOrder} onChange={(event) => setForm({ ...form, displayOrder: Number(event.target.value) })} />
       <button className="btn secondary w-full" onClick={save}><Plus size={18} /> 追加</button>
     </section>
   );

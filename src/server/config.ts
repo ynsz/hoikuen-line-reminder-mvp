@@ -12,5 +12,8 @@ export const config = {
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean),
+  cronJobOrgApiKey: process.env.CRON_JOB_ORG_API_KEY ?? "",
+  cronJobPreviousId: process.env.CRON_JOB_PREVIOUS_ID ?? "",
+  cronJobMorningId: process.env.CRON_JOB_MORNING_ID ?? "",
   cronSecret: process.env.CRON_SECRET ?? ""
 };

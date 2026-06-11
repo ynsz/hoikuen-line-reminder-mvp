@@ -155,7 +155,7 @@ function assignmentLines(familyId: string, date: string, views: AssignmentView[]
 function morningAssignmentLines(views: AssignmentView[]) {
   return views
     .map((view) => {
-      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}`;
+      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}${childSuffix(view.child)}`;
       if (view.status === "absent") {
         return `${childTitle}\n休み`;
       }

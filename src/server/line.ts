@@ -41,6 +41,11 @@ export function formatDateLabel(date: string) {
   return `${d.getMonth() + 1}/${d.getDate()}(${jaWeekdays[d.getDay()]})`;
 }
 
+export function isWeekend(date: string) {
+  const day = new Date(`${date}T00:00:00+09:00`).getDay();
+  return day === 0 || day === 6;
+}
+
 function memberName(member: Member | null) {
   return member?.name ?? "";
 }

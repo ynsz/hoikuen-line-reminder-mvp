@@ -4,7 +4,13 @@ import { Bell, CalendarDays, Clock, Plus, Save, Send, Trash2, UsersRound } from 
 import type { AdminState, Child, Member, Role, WeeklyRule } from "../shared/types";
 import "./styles.css";
 
-const days = ["日", "月", "火", "水", "木", "金", "土"];
+const days = [
+  { label: "月", value: 1 },
+  { label: "火", value: 2 },
+  { label: "水", value: 3 },
+  { label: "木", value: 4 },
+  { label: "金", value: 5 }
+];
 const roleLabels: Record<Role, string> = {
   father: "パパ",
   mother: "ママ",
@@ -12,6 +18,17 @@ const roleLabels: Record<Role, string> = {
   grandmother: "祖母",
   other: "その他"
 };
+const childColors = ["#2F80ED", "#EB5757", "#9B51E0", "#F2994A", "#219653"];
+
+function childColor(index: number) {
+  return childColors[index % childColors.length];
+}
+
+function memberColor(member: Member) {
+  if (member.role === "father") return "#2F80ED";
+  if (member.role === "mother") return "#EB5757";
+  return "#08A045";
+}
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -181,10 +198,11 @@ function MembersPanel({ state, setState }: { state: AdminState; setState: (state
         {editableMembers.map((member) => {
           const draft = draftFor(member);
           const changed = draft !== member.name;
+          const color = memberColor(member);
           return (
-            <div className="edit-row" key={member.id}>
+            <div className="edit-row color-row" key={member.id} style={{ "--accent": color } as React.CSSProperties}>
               <label className="field">
-                <span>{roleLabels[member.role]}</span>
+                <span className="color-label"><i style={{ background: color }} />{roleLabels[member.role]}</span>
                 <input value={draft} onChange={(event) => setDrafts({ ...drafts, [member.id]: event.target.value })} />
               </label>
               <div className="edit-actions">
@@ -229,11 +247,13 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
     <section className="panel">
       <h2 className="section-title"><UsersRound size={20} /> 子ども</h2>
       <div className="stack">
-        {state.children.map((child) => {
+        {state.children.map((child, index) => {
           const draft = draftFor(child);
           const changed = draft.name !== child.name;
+          const color = childColor(index);
           return (
-            <div className="edit-row" key={child.id}>
+            <div className="edit-row color-row" key={child.id} style={{ "--accent": color } as React.CSSProperties}>
+              <span className="color-label"><i style={{ background: color }} />子ども</span>
               <input aria-label={`${child.name}の名前`} value={draft.name} onChange={(event) => setDraft(child, { name: event.target.value })} />
               <div className="edit-actions">
                 <button className="icon-btn" title="保存" disabled={!changed} onClick={() => update(child)}><Save size={17} /></button>
@@ -278,27 +298,31 @@ function WeeklyRulesTable({ state, setState }: { state: AdminState; setState: (s
         <thead>
           <tr>
             <th>曜日</th>
-            {state.children.map((child) => <th key={child.id}>{child.name}</th>)}
+            {state.children.map((child, index) => (
+              <th key={child.id}>
+                <span className="table-name-pill" style={{ background: childColor(index) }}>{child.name}</span>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {days.map((day, dayOfWeek) => (
-            <tr key={day}>
-              <td className="day">{day}</td>
+          {days.map((day) => (
+            <tr key={day.value}>
+              <td className="day">{day.label}</td>
               {state.children.map((child) => {
-                const rule = rulesByKey.get(`${child.id}:${dayOfWeek}`);
+                const rule = rulesByKey.get(`${child.id}:${day.value}`);
                 return (
                   <td key={child.id}>
                     <div className="rule-cell">
                       <label>
                         <span>送り</span>
-                        <select value={rule?.dropoffMemberId ?? ""} onChange={(event) => updateRule(child, dayOfWeek, "dropoffMemberId", event.target.value)}>
+                        <select value={rule?.dropoffMemberId ?? ""} onChange={(event) => updateRule(child, day.value, "dropoffMemberId", event.target.value)}>
                           {state.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                         </select>
                       </label>
                       <label>
                         <span>迎え</span>
-                        <select value={rule?.pickupMemberId ?? ""} onChange={(event) => updateRule(child, dayOfWeek, "pickupMemberId", event.target.value)}>
+                        <select value={rule?.pickupMemberId ?? ""} onChange={(event) => updateRule(child, day.value, "pickupMemberId", event.target.value)}>
                           {state.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                         </select>
                       </label>

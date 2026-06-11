@@ -16,7 +16,7 @@ import {
   upsertMember,
   upsertWeeklyRule
 } from "./repository";
-import { buildMorningMessage, buildPreviousDayMessage, handleLineEvent, isoDate, lineMiddleware, previewLinePayload, pushToFamily } from "./line";
+import { buildMorningMessage, buildPreviousDayMessage, handleLineEvent, isoDate, isWeekend, lineMiddleware, previewLinePayload, pushToFamily } from "./line";
 import { startScheduler } from "./scheduler";
 import { syncCronJobOrgSchedule } from "./cronJobOrg";
 
@@ -134,6 +134,9 @@ function requireCronSecret(req: express.Request, res: express.Response, next: ex
 
 app.post("/api/cron/previous-day", requireCronSecret, async (_req, res) => {
   const date = isoDate(1);
+  if (isWeekend(date)) {
+    return res.json({ ok: true, date, skipped: true, reason: "weekend" });
+  }
   const message = buildPreviousDayMessage(config.defaultFamilyId, date);
   const delivery = await pushToFamily(config.defaultFamilyId, message);
   res.json({ ok: delivery.successCount > 0, date, delivery });
@@ -141,6 +144,9 @@ app.post("/api/cron/previous-day", requireCronSecret, async (_req, res) => {
 
 app.post("/api/cron/morning", requireCronSecret, async (_req, res) => {
   const date = isoDate(0);
+  if (isWeekend(date)) {
+    return res.json({ ok: true, date, skipped: true, reason: "weekend" });
+  }
   const message = buildMorningMessage(config.defaultFamilyId, date);
   const delivery = await pushToFamily(config.defaultFamilyId, message);
   res.json({ ok: delivery.successCount > 0, date, delivery });

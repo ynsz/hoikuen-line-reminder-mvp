@@ -112,15 +112,15 @@ app.get("/api/assignments/:date", (req, res) => {
   res.json(getAssignmentViews(config.defaultFamilyId, req.params.date));
 });
 
-app.get("/api/line/preview/:kind", (req, res) => {
+app.get("/api/line/preview/:kind", async (req, res) => {
   const kind = req.params.kind === "morning" ? "morning" : "previous";
-  res.json(previewLinePayload(config.defaultFamilyId, req.query.date ? String(req.query.date) : isoDate(kind === "previous" ? 1 : 0), kind));
+  res.json(await previewLinePayload(config.defaultFamilyId, req.query.date ? String(req.query.date) : isoDate(kind === "previous" ? 1 : 0), kind));
 });
 
 app.post("/api/line/test/:kind", async (req, res) => {
   const date = req.body.date ?? isoDate(req.params.kind === "previous" ? 1 : 0);
   const message = req.params.kind === "morning"
-    ? buildMorningMessage(config.defaultFamilyId, date)
+    ? await buildMorningMessage(config.defaultFamilyId, date)
     : buildPreviousDayMessage(config.defaultFamilyId, date);
   const delivery = await pushToFamily(config.defaultFamilyId, message);
   res.json({ ok: delivery.successCount > 0, date, delivery, message });
@@ -147,7 +147,7 @@ app.post("/api/cron/morning", requireCronSecret, async (_req, res) => {
   if (isWeekend(date)) {
     return res.json({ ok: true, date, skipped: true, reason: "weekend" });
   }
-  const message = buildMorningMessage(config.defaultFamilyId, date);
+  const message = await buildMorningMessage(config.defaultFamilyId, date);
   const delivery = await pushToFamily(config.defaultFamilyId, message);
   res.json({ ok: delivery.successCount > 0, date, delivery });
 });

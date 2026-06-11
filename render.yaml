@@ -26,6 +26,10 @@ services:
         sync: false
       - key: CRON_JOB_MORNING_ID
         sync: false
+      - key: WEATHER_LATITUDE
+        sync: false
+      - key: WEATHER_LONGITUDE
+        sync: false
     disks:
       - name: sqlite-data
         mountPath: /var/data

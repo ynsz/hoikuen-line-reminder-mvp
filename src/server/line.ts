@@ -12,6 +12,7 @@ import {
   upsertLineUser
 } from "./repository";
 import type { AssignmentStatus, AssignmentView, Child, Member } from "../shared/types";
+import { getMorningWeatherNote } from "./weather";
 
 const client = config.lineChannelAccessToken && config.lineChannelSecret
   ? new Client({
@@ -151,6 +152,21 @@ function assignmentLines(familyId: string, date: string, views: AssignmentView[]
   return `${childBlocks}${monthly ? `\n\n${monthly}` : ""}${monthlyFamilySummary(counts, members, date)}`;
 }
 
+function morningAssignmentLines(views: AssignmentView[]) {
+  return views
+    .map((view) => {
+      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}`;
+      if (view.status === "absent") {
+        return `${childTitle}\n休み`;
+      }
+      if (view.status === "no_transport") {
+        return `${childTitle}\n送迎なし`;
+      }
+      return `${childTitle}\n送り：${memberName(view.dropoffMember)}\n迎え：${memberName(view.pickupMember)}`;
+    })
+    .join("\n\n");
+}
+
 type ButtonSpec = {
   label: string;
   data: string;
@@ -242,9 +258,10 @@ export function buildPreviousDayMessage(familyId: string, date: string): Message
   );
 }
 
-export function buildMorningMessage(familyId: string, date: string): Message {
+export async function buildMorningMessage(familyId: string, date: string): Promise<Message> {
   const views = getAssignmentViews(familyId, date);
-  return textMessage(`今日の送迎担当です。\n\n${formatDateLabel(date)}\n\n${assignmentLines(familyId, date, views)}`);
+  const weatherNote = await getMorningWeatherNote(date);
+  return textMessage(`今日の送迎担当です\n\n${formatDateLabel(date)}\n\n${morningAssignmentLines(views)}\n\n${weatherNote}`);
 }
 
 function selectChildrenMessage(familyId: string, date: string): Message {
@@ -425,6 +442,6 @@ export async function pushToFamily(familyId: string, message: Message) {
   return { destinationCount: destinationIds.length, successCount, failureCount, disabled: false };
 }
 
-export function previewLinePayload(familyId: string, date: string, kind: "previous" | "morning") {
+export async function previewLinePayload(familyId: string, date: string, kind: "previous" | "morning") {
   return kind === "previous" ? buildPreviousDayMessage(familyId, date) : buildMorningMessage(familyId, date);
 }

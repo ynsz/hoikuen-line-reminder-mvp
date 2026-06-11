@@ -19,7 +19,7 @@ export function startScheduler() {
 
   cron.schedule(
     cronFromTime(setting.morningNotifyTime),
-    () => pushToFamily(config.defaultFamilyId, buildMorningMessage(config.defaultFamilyId, isoDate(0))),
+    async () => pushToFamily(config.defaultFamilyId, await buildMorningMessage(config.defaultFamilyId, isoDate(0))),
     { timezone: "Asia/Tokyo" }
   );
 

@@ -92,7 +92,7 @@ function App() {
       <div className="mx-auto grid max-w-7xl gap-5 px-5 py-5 xl:grid-cols-[320px_1fr]">
         <aside className="space-y-5">
           <FamilyPanel state={state} setState={setState} />
-          <NotificationPanel state={state} setState={setState} />
+          <NotificationPanel state={state} setState={setState} onSaved={() => setToast("通知時間を変更しました")} />
           <MembersPanel state={state} setState={setState} />
           <ChildrenPanel state={state} setState={setState} />
         </aside>
@@ -133,14 +133,18 @@ function FamilyPanel({ state, setState }: { state: AdminState; setState: (state:
   );
 }
 
-function NotificationPanel({ state, setState }: { state: AdminState; setState: (state: AdminState) => void }) {
+function NotificationPanel({ state, setState, onSaved }: { state: AdminState; setState: (state: AdminState) => void; onSaved: () => void }) {
   const [previous, setPrevious] = useState(state.notificationSetting.previousDayNotifyTime);
   const [morning, setMorning] = useState(state.notificationSetting.morningNotifyTime);
+  const [saving, setSaving] = useState(false);
   const save = async () => {
+    setSaving(true);
     setState(await api<AdminState>("/api/notification-setting", {
       method: "PUT",
       body: JSON.stringify({ previousDayNotifyTime: previous, morningNotifyTime: morning })
     }));
+    setSaving(false);
+    onSaved();
   };
   return (
     <section className="panel">
@@ -153,7 +157,7 @@ function NotificationPanel({ state, setState }: { state: AdminState; setState: (
         <span>当日通知</span>
         <input type="time" value={morning} onChange={(event) => setMorning(event.target.value)} />
       </label>
-      <button className="btn primary w-full" onClick={save}><Save size={18} /> 保存</button>
+      <button className="btn primary w-full" disabled={saving} onClick={save}><Save size={18} /> {saving ? "保存中" : "保存"}</button>
     </section>
   );
 }

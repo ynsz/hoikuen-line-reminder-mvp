@@ -71,12 +71,31 @@ function isLastWeekdayOfMonth(date: string) {
   return true;
 }
 
-function daysSinceBirth(child: Child, date: string) {
+function ageInfo(child: Child, date: string) {
   if (!child.birthDate) return null;
-  const birth = dateFromIsoDay(child.birthDate).getTime();
-  const target = dateFromIsoDay(date).getTime();
-  if (!Number.isFinite(birth) || target < birth) return null;
-  return Math.floor((target - birth) / 86_400_000);
+  const birth = dateFromIsoDay(child.birthDate);
+  const target = dateFromIsoDay(date);
+  if (!Number.isFinite(birth.getTime()) || target < birth) return null;
+
+  let months = (target.getUTCFullYear() - birth.getUTCFullYear()) * 12 + (target.getUTCMonth() - birth.getUTCMonth());
+  if (target.getUTCDate() < birth.getUTCDate()) {
+    months -= 1;
+  }
+
+  const days = Math.floor((target.getTime() - birth.getTime()) / 86_400_000);
+  let label: string;
+  if (months < 1) {
+    label = `生後${days}日`;
+  } else {
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+    if (years === 0) {
+      label = `${months}ヶ月`;
+    } else {
+      label = remainingMonths === 0 ? `${years}歳` : `${years}歳${remainingMonths}ヶ月`;
+    }
+  }
+  return { label, days };
 }
 
 function childSuffix(child: Child) {
@@ -85,14 +104,6 @@ function childSuffix(child: Child) {
 
 function memberName(member: Member | null) {
   return member?.name ?? "";
-}
-
-function monthlyCountLine(counts: Map<string, number> | undefined, members: Member[]) {
-  if (!counts) return "";
-  const parts = members
-    .filter((member) => member.role === "father" || member.role === "mother")
-    .map((member) => `${member.name}${counts.get(member.id) ?? 0}回`);
-  return parts.length ? `今月の送迎\n${parts.join(" / ")}` : "";
 }
 
 function monthlyFamilySummary(counts: Map<string, Map<string, number>>, members: Member[], date: string) {
@@ -107,23 +118,37 @@ function monthlyFamilySummary(counts: Map<string, Map<string, number>>, members:
   return total > 0 ? `\n\n今月は夫婦で${total}回の送迎をこなしました👏` : "";
 }
 
+function monthlyTotalLines(counts: Map<string, Map<string, number>>, members: Member[]) {
+  const parentMembers = members.filter((member) => member.role === "father" || member.role === "mother");
+  if (!parentMembers.length) return "";
+  const totals = new Map(parentMembers.map((member) => [member.id, 0]));
+  for (const childCounts of counts.values()) {
+    for (const member of parentMembers) {
+      totals.set(member.id, (totals.get(member.id) ?? 0) + (childCounts.get(member.id) ?? 0));
+    }
+  }
+  return `📊 今月の送迎\n${parentMembers.map((member) => `${member.name} ${totals.get(member.id) ?? 0}回`).join("\n")}`;
+}
+
 function assignmentLines(familyId: string, date: string, views: AssignmentView[]) {
   const members = getMembers(familyId);
   const counts = getMonthlyTransportCounts(familyId, date);
-  return views
+  const childBlocks = views
     .map((view) => {
-      const age = daysSinceBirth(view.child, date);
-      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}${childSuffix(view.child)}${age === null ? "" : ` 生後${age}日`}`;
-      const countLine = monthlyCountLine(counts.get(view.child.id), members);
+      const age = ageInfo(view.child, date);
+      const childTitle = `${view.child.emoji || "👶"} ${view.child.name}${childSuffix(view.child)}`;
+      const ageLine = age ? `\n${age.label}（生後${age.days}日）` : "";
       if (view.status === "absent") {
-        return `${childTitle}\nこの日は休み${countLine ? `\n\n${countLine}` : ""}`;
+        return `${childTitle}${ageLine}\n\nこの日は休み`;
       }
       if (view.status === "no_transport") {
-        return `${childTitle}\nこの日は送迎なし${countLine ? `\n\n${countLine}` : ""}`;
+        return `${childTitle}${ageLine}\n\nこの日は送迎なし`;
       }
-      return `${childTitle}\n送り：${memberName(view.dropoffMember)}\n迎え：${memberName(view.pickupMember)}${countLine ? `\n\n${countLine}` : ""}`;
+      return `${childTitle}${ageLine}\n\n送り：${memberName(view.dropoffMember)}\n迎え：${memberName(view.pickupMember)}`;
     })
-    .join("\n\n") + monthlyFamilySummary(counts, members, date);
+    .join("\n\n");
+  const monthly = monthlyTotalLines(counts, members);
+  return `${childBlocks}${monthly ? `\n\n${monthly}` : ""}${monthlyFamilySummary(counts, members, date)}`;
 }
 
 type ButtonSpec = {
@@ -212,7 +237,7 @@ export function buildPreviousDayMessage(familyId: string, date: string): Message
   const views = getAssignmentViews(familyId, date);
   return flexMessage(
     "明日の送迎予定です",
-    `${formatDateLabel(date)}\n\n${assignmentLines(familyId, date, views)}\n\n変更がある場合のみ押してください。`,
+    `${formatDateLabel(date)}\n\n${assignmentLines(familyId, date, views)}\n\n問題なければ何もしなくてOKです。`,
     [{ label: "変更する", data: `action=start&date=${date}`, color: "#E7F4EC", textColor: "#2F7D57", style: "secondary" }]
   );
 }

@@ -91,10 +91,7 @@ export function buildMorningMessage(familyId: string, date: string): Message {
 
 function selectChildrenMessage(familyId: string, date: string): Message {
   const children = getChildren(familyId);
-  const items = [
-    ...children.map((child) => postback(child.name, `action=target&date=${date}&childIds=${child.id}`)),
-    postback("全員", `action=target&date=${date}&childIds=${children.map((child) => child.id).join(",")}`)
-  ];
+  const items = children.map((child) => postback(child.name, `action=target&date=${date}&childIds=${child.id}`));
   return textMessage("誰の予定を変更しますか？", items);
 }
 
@@ -160,7 +157,6 @@ function updatedMessage(familyId: string, date: string): Message {
     `${formatDateLabel(date)}の送迎予定を更新しました。\n\n${assignmentLines(getAssignmentViews(familyId, date))}\n\n他にも変更しますか？`,
     [
       ...children.map((child) => postback(`${child.name}を変更`, `action=target&date=${date}&childIds=${child.id}`)),
-      postback("全員を変更", `action=target&date=${date}&childIds=${children.map((child) => child.id).join(",")}`),
       postback("これで確定", `action=confirm&date=${date}`)
     ]
   );

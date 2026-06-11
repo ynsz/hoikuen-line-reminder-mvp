@@ -130,13 +130,13 @@ function App() {
           <div className="toolbar">
             <div>
               <h2 className="section-title"><CalendarDays size={20} /> 曜日ごとの固定パターン</h2>
-              <p className="text-sm text-black/60">変更がない日はこの表の担当でLINE通知されます。</p>
+              <p className="text-sm text-black/60">変更がない日はこの表の担当でLINE通知されます。選ぶと自動で保存されます。</p>
             </div>
             <button className="btn primary" disabled={saving} onClick={() => saveRules(state.weeklyRules)}>
               <Save size={18} /> {saving ? "保存中" : "保存"}
             </button>
           </div>
-          <WeeklyRulesTable state={state} setState={setState} />
+          <WeeklyRulesTable state={state} setState={setState} saveRules={saveRules} />
           <PreviewPanel state={state} />
         </section>
       </div>
@@ -315,12 +315,20 @@ function ChildrenPanel({ state, setState }: { state: AdminState; setState: (stat
   );
 }
 
-function WeeklyRulesTable({ state, setState }: { state: AdminState; setState: (state: AdminState) => void }) {
+function WeeklyRulesTable({
+  state,
+  setState,
+  saveRules
+}: {
+  state: AdminState;
+  setState: (state: AdminState) => void;
+  saveRules: (rules: WeeklyRule[]) => Promise<void>;
+}) {
   const rulesByKey = useMemo(() => {
     return new Map(state.weeklyRules.map((rule) => [`${rule.childId}:${rule.dayOfWeek}`, rule]));
   }, [state.weeklyRules]);
 
-  const updateRule = (child: Child, dayOfWeek: number, field: "dropoffMemberId" | "pickupMemberId", value: string) => {
+  const updateRule = async (child: Child, dayOfWeek: number, field: "dropoffMemberId" | "pickupMemberId", value: string) => {
     const key = `${child.id}:${dayOfWeek}`;
     const existing = rulesByKey.get(key);
     const nextRule: WeeklyRule = {
@@ -332,10 +340,12 @@ function WeeklyRulesTable({ state, setState }: { state: AdminState; setState: (s
       pickupMemberId: existing?.pickupMemberId ?? null,
       [field]: value || null
     };
-    setState({
+    const nextState = {
       ...state,
       weeklyRules: [...state.weeklyRules.filter((rule) => `${rule.childId}:${rule.dayOfWeek}` !== key), nextRule]
-    });
+    };
+    setState(nextState);
+    await saveRules(nextState.weeklyRules);
   };
 
   return (

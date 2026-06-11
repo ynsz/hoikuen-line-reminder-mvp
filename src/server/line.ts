@@ -1,4 +1,4 @@
-import { Client, middleware, type Message, type QuickReplyItem, type WebhookEvent } from "@line/bot-sdk";
+import { Client, middleware, type Message, type WebhookEvent } from "@line/bot-sdk";
 import { config } from "./config";
 import {
   getAssignmentViews,
@@ -27,6 +27,7 @@ export const lineMiddleware = config.lineChannelAccessToken && config.lineChanne
   : undefined;
 
 const jaWeekdays = ["日", "月", "火", "水", "木", "金", "土"];
+const childButtonColors = ["#2F80ED", "#EB5757", "#9B51E0", "#F2994A", "#219653"];
 
 export function isoDate(offsetDays = 0) {
   const now = new Date();
@@ -58,29 +59,81 @@ function assignmentLines(views: AssignmentView[]) {
     .join("\n\n");
 }
 
-function postback(label: string, data: string): QuickReplyItem {
+type ButtonSpec = {
+  label: string;
+  data: string;
+  color?: string;
+  style?: "primary" | "secondary";
+};
+
+function postbackAction(label: string, data: string) {
   return {
-    type: "action",
-    action: {
-      type: "postback",
-      label,
-      data,
-      displayText: label
-    }
+    type: "postback",
+    label,
+    data,
+    displayText: label
   };
 }
 
-function textMessage(text: string, items?: QuickReplyItem[]): Message {
-  return items?.length
-    ? { type: "text", text, quickReply: { items } }
-    : { type: "text", text };
+function flexButton({ label, data, color = "#08A045", style = "primary" }: ButtonSpec) {
+  return {
+    type: "button",
+    style,
+    height: "md",
+    color,
+    action: postbackAction(label, data)
+  };
+}
+
+function flexMessage(title: string, body: string, buttons: ButtonSpec[]): Message {
+  return {
+    type: "flex",
+    altText: title,
+    contents: {
+      type: "bubble",
+      size: "mega",
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "md",
+        contents: [
+          {
+            type: "text",
+            text: title,
+            weight: "bold",
+            size: "lg",
+            color: "#202124",
+            wrap: true
+          },
+          {
+            type: "text",
+            text: body,
+            size: "sm",
+            color: "#202124",
+            wrap: true
+          }
+        ]
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: buttons.map(flexButton)
+      }
+    }
+  } as Message;
+}
+
+function textMessage(text: string): Message {
+  return { type: "text", text };
 }
 
 export function buildPreviousDayMessage(familyId: string, date: string): Message {
   const views = getAssignmentViews(familyId, date);
-  return textMessage(
-    `明日の送迎予定です。\n\n${formatDateLabel(date)}\n\n${assignmentLines(views)}\n\n変更がある場合のみ押してください。`,
-    [postback("変更する", `action=start&date=${date}`)]
+  return flexMessage(
+    "明日の送迎予定です",
+    `${formatDateLabel(date)}\n\n${assignmentLines(views)}\n\n変更がある場合のみ押してください。`,
+    [{ label: "変更する", data: `action=start&date=${date}`, color: "#08A045", style: "secondary" }]
   );
 }
 
@@ -91,23 +144,37 @@ export function buildMorningMessage(familyId: string, date: string): Message {
 
 function selectChildrenMessage(familyId: string, date: string): Message {
   const children = getChildren(familyId);
-  const items = children.map((child) => postback(child.name, `action=target&date=${date}&childIds=${child.id}`));
-  return textMessage("誰の予定を変更しますか？", items);
+  return flexMessage(
+    "誰の予定を変更しますか？",
+    "変更する子どもを選んでください。",
+    children.map((child, index) => ({
+      label: child.name,
+      data: `action=target&date=${date}&childIds=${child.id}`,
+      color: childButtonColors[index % childButtonColors.length]
+    }))
+  );
 }
 
 function selectChangeTypeMessage(date: string, childIds: string): Message {
-  return textMessage("何を変更しますか？", [
-    postback("送り", `action=changeType&date=${date}&childIds=${childIds}&type=dropoff`),
-    postback("迎え", `action=changeType&date=${date}&childIds=${childIds}&type=pickup`),
-    postback("両方", `action=changeType&date=${date}&childIds=${childIds}&type=both`),
-    postback("送迎なし", `action=applyStatus&date=${date}&childIds=${childIds}&status=no_transport`),
-    postback("休み", `action=applyStatus&date=${date}&childIds=${childIds}&status=absent`)
+  return flexMessage("何を変更しますか？", "変更内容を選んでください。", [
+    { label: "送り", data: `action=changeType&date=${date}&childIds=${childIds}&type=dropoff`, color: "#08A045" },
+    { label: "迎え", data: `action=changeType&date=${date}&childIds=${childIds}&type=pickup`, color: "#00A6A6" },
+    { label: "両方", data: `action=changeType&date=${date}&childIds=${childIds}&type=both`, color: "#2F80ED" },
+    { label: "送迎なし", data: `action=applyStatus&date=${date}&childIds=${childIds}&status=no_transport`, color: "#828282" },
+    { label: "休み", data: `action=applyStatus&date=${date}&childIds=${childIds}&status=absent`, color: "#F2994A" }
   ]);
 }
 
 function selectMemberMessage(familyId: string, date: string, childIds: string, type: string): Message {
-  const items = getMembers(familyId).map((member) => postback(member.name, `action=member&date=${date}&childIds=${childIds}&type=${type}&memberId=${member.id}`));
-  return textMessage("担当者を選びます", items);
+  return flexMessage(
+    "担当者を選びます",
+    "担当する人を選んでください。",
+    getMembers(familyId).map((member) => ({
+      label: member.name,
+      data: `action=member&date=${date}&childIds=${childIds}&type=${type}&memberId=${member.id}`,
+      color: member.role === "father" ? "#2F80ED" : member.role === "mother" ? "#EB5757" : "#08A045"
+    }))
+  );
 }
 
 function applyChange(input: {
@@ -150,11 +217,16 @@ function applyStatus(familyId: string, date: string, childIds: string[], status:
 
 function updatedMessage(familyId: string, date: string): Message {
   const children = getChildren(familyId);
-  return textMessage(
-    `${formatDateLabel(date)}の送迎予定を更新しました。\n\n${assignmentLines(getAssignmentViews(familyId, date))}\n\n他にも変更しますか？`,
+  return flexMessage(
+    `${formatDateLabel(date)}の送迎予定を更新しました`,
+    `${assignmentLines(getAssignmentViews(familyId, date))}\n\n他にも変更しますか？`,
     [
-      ...children.map((child) => postback(`${child.name}を変更`, `action=target&date=${date}&childIds=${child.id}`)),
-      postback("これで確定", `action=confirm&date=${date}`)
+      ...children.map((child, index) => ({
+        label: `${child.name}を変更`,
+        data: `action=target&date=${date}&childIds=${child.id}`,
+        color: childButtonColors[index % childButtonColors.length]
+      })),
+      { label: "これで確定", data: `action=confirm&date=${date}`, color: "#08A045", style: "secondary" as const }
     ]
   );
 }

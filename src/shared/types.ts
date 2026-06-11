@@ -1,5 +1,5 @@
 export type Role = "father" | "mother" | "grandfather" | "grandmother" | "other";
-export type AssignmentStatus = "scheduled" | "no_transport" | "absent" | "undecided";
+export type AssignmentStatus = "scheduled" | "no_transport" | "absent";
 
 export type Family = {
   id: string;

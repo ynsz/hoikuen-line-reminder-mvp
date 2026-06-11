@@ -41,7 +41,7 @@ export function formatDateLabel(date: string) {
 }
 
 function memberName(member: Member | null) {
-  return member?.name ?? "未定";
+  return member?.name ?? "";
 }
 
 function assignmentLines(views: AssignmentView[]) {
@@ -106,10 +106,7 @@ function selectChangeTypeMessage(date: string, childIds: string): Message {
 }
 
 function selectMemberMessage(familyId: string, date: string, childIds: string, type: string): Message {
-  const items = [
-    ...getMembers(familyId).map((member) => postback(member.name, `action=member&date=${date}&childIds=${childIds}&type=${type}&memberId=${member.id}`)),
-    postback("未定", `action=member&date=${date}&childIds=${childIds}&type=${type}&memberId=undecided`)
-  ];
+  const items = getMembers(familyId).map((member) => postback(member.name, `action=member&date=${date}&childIds=${childIds}&type=${type}&memberId=${member.id}`));
   return textMessage("担当者を選びます", items);
 }
 
@@ -204,8 +201,8 @@ export async function handleLineEvent(event: WebhookEvent, familyId: string) {
       date: data.date,
       childIds: data.childIds.split(","),
       type: data.type as "dropoff" | "pickup" | "both",
-      memberId: data.memberId === "undecided" ? null : data.memberId,
-      status: data.memberId === "undecided" ? "undecided" : "scheduled"
+      memberId: data.memberId,
+      status: "scheduled"
     });
     message = updatedMessage(familyId, data.date);
   } else if (data.action === "confirm") {

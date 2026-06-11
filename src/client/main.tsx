@@ -39,7 +39,7 @@ function useAdminState() {
 }
 
 function memberName(members: Member[], id: string | null) {
-  return members.find((member) => member.id === id)?.name ?? "未定";
+  return members.find((member) => member.id === id)?.name ?? "";
 }
 
 function App() {
@@ -293,14 +293,12 @@ function WeeklyRulesTable({ state, setState }: { state: AdminState; setState: (s
                       <label>
                         <span>送り</span>
                         <select value={rule?.dropoffMemberId ?? ""} onChange={(event) => updateRule(child, dayOfWeek, "dropoffMemberId", event.target.value)}>
-                          <option value="">未定</option>
                           {state.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                         </select>
                       </label>
                       <label>
                         <span>迎え</span>
                         <select value={rule?.pickupMemberId ?? ""} onChange={(event) => updateRule(child, dayOfWeek, "pickupMemberId", event.target.value)}>
-                          <option value="">未定</option>
                           {state.members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                         </select>
                       </label>

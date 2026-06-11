@@ -132,7 +132,7 @@ function requireCronSecret(req: express.Request, res: express.Response, next: ex
   return res.sendStatus(401);
 }
 
-app.post("/api/cron/previous-day", requireCronSecret, async (_req, res) => {
+async function runPreviousDayCron(res: express.Response) {
   const date = isoDate(1);
   if (isWeekend(date)) {
     return res.json({ ok: true, date, skipped: true, reason: "weekend" });
@@ -140,9 +140,9 @@ app.post("/api/cron/previous-day", requireCronSecret, async (_req, res) => {
   const message = buildPreviousDayMessage(config.defaultFamilyId, date);
   const delivery = await pushToFamily(config.defaultFamilyId, message);
   res.json({ ok: delivery.successCount > 0, date, delivery });
-});
+}
 
-app.post("/api/cron/morning", requireCronSecret, async (_req, res) => {
+async function runMorningCron(res: express.Response) {
   const date = isoDate(0);
   if (isWeekend(date)) {
     return res.json({ ok: true, date, skipped: true, reason: "weekend" });
@@ -150,7 +150,12 @@ app.post("/api/cron/morning", requireCronSecret, async (_req, res) => {
   const message = await buildMorningMessage(config.defaultFamilyId, date);
   const delivery = await pushToFamily(config.defaultFamilyId, message);
   res.json({ ok: delivery.successCount > 0, date, delivery });
-});
+}
+
+app.get("/api/cron/previous-day", requireCronSecret, async (_req, res) => runPreviousDayCron(res));
+app.post("/api/cron/previous-day", requireCronSecret, async (_req, res) => runPreviousDayCron(res));
+app.get("/api/cron/morning", requireCronSecret, async (_req, res) => runMorningCron(res));
+app.post("/api/cron/morning", requireCronSecret, async (_req, res) => runMorningCron(res));
 
 app.post("/line/webhook", async (req, res) => {
   const events = req.body.events ?? [];

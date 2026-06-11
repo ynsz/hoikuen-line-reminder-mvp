@@ -100,6 +100,7 @@ LINE_CHANNEL_ACCESS_TOKEN=LINE DevelopersのChannel access token
 LINE_CHANNEL_SECRET=LINE DevelopersのChannel secret
 DATABASE_PATH=/var/data/app.db
 DEFAULT_FAMILY_ID=fam-demo
+CRON_SECRET=cron-job.orgのURLに付ける固定の合言葉
 ```
 
 Renderの公開URLがたとえば以下なら、
@@ -122,6 +123,7 @@ POST /api/cron/morning
 ```
 
 `CRON_SECRET` を設定した場合は、`x-cron-secret` ヘッダーか `?secret=...` で同じ値を渡します。
+Renderで `CRON_SECRET` を変更した場合は、cron-job.org側のURL末尾の `?secret=...` も同じ値に更新してください。ズレると `401 Unauthorized` になり、通知は送られません。
 
 ### 管理画面からcron-job.orgの時刻も同期する
 

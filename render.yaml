@@ -19,7 +19,7 @@ services:
       - key: LINE_DESTINATION_ID
         sync: false
       - key: CRON_SECRET
-        generateValue: true
+        sync: false
       - key: CRON_JOB_ORG_API_KEY
         sync: false
       - key: CRON_JOB_PREVIOUS_ID

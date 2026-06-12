@@ -53,8 +53,13 @@ export async function getMorningWeatherNote(date: string) {
     end_date: date
   });
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2000);
+
   try {
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {
+      signal: controller.signal
+    });
     if (!response.ok) throw new Error(`Open-Meteo ${response.status}`);
     const data = (await response.json()) as OpenMeteoResponse;
     if (!data.daily) return "🌤️ 今日も送迎お気をつけて。";
@@ -62,5 +67,7 @@ export async function getMorningWeatherNote(date: string) {
   } catch (error) {
     console.error("[weather failed]", error instanceof Error ? error.message : String(error));
     return "🌤️ 今日も送迎お気をつけて。";
+  } finally {
+    clearTimeout(timeout);
   }
 }
